@@ -11,7 +11,7 @@
             const popup = window.open('about:blank', 'popup');
 
             // Navigate the popup to the IdP's auth endpoint with the client's parameters
-            const authEndpoint = new URL('https://idp-elearning.cloud.nds.rub.de/auth');
+            const authEndpoint = new URL('https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml?');
             authEndpoint.searchParams.set('response_type', 'token');
             authEndpoint.searchParams.set('client_id', 'spa-1');
             authEndpoint.searchParams.set('redirect_uri', 'https://sp-elearning.cloud.nds.rub.de:443/oidc_sp/spa/verify');
