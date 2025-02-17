@@ -14,8 +14,8 @@
             const authEndpoint = new URL('https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml?');
             authEndpoint.searchParams.set('response_type', 'token');
             authEndpoint.searchParams.set('client_id', 'spa-1');
-            authEndpoint.searchParams.set('redirect_uri', 'https://sp-elearning.cloud.nds.rub.de:443/oidc_sp/spa/verify');
-            authEndpoint.searchParams.set('state', 'exploit-state');
+            authEndpoint.searchParams.set('redirect_uri', 'https%3A%2F%2Fsp-elearning.cloud.nds.rub.de%3A443%2Foidc_sp%2Fspa%2Fverify');
+            authEndpoint.searchParams.set('state', 'e57607e2-e4cb-484f-9c4d-5102ed97530e');
             authEndpoint.searchParams.set('skip_prompt', '1');
             authEndpoint.searchParams.set('idp_verifier', 'spa-a5');
             authEndpoint.searchParams.set('response_mode', 'web_message');
