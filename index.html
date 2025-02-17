@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Iframe OAuth Logger</title>
+  
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 1rem;
+      padding: 0;
+      background: #f4f4f4;
+    }
+    h1, h2 {
+      color: #333;
+    }
+    button {
+      margin-bottom: 1rem;
+    }
+    iframe {
+      display: block;
+      margin: 1rem 0;
+      border: 1px solid #ccc;
+    }
+    #logs {
+      white-space: pre-wrap;
+      background: #fff;
+      padding: 1rem;
+      border: 1px solid #ccc;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Iframe OAuth Logger</h1>
+  <button id="open-iframe-btn">Open Login Iframe</button>
+  <button id="clear-logs-btn">Clear Logs</button>
+
+  <h2>Logs</h2>
+  <div id="logs">(No logs yet)</div>
+
+  <script>
+    // We'll store messages in an array and persist them in localStorage
+    let iframeLogs = [];
+
+    // Load logs from localStorage on page load
+    document.addEventListener("DOMContentLoaded", () => {
+      const savedLogs = localStorage.getItem("iframeLogs");
+      if (savedLogs) {
+        iframeLogs = JSON.parse(savedLogs);
+      }
+      displayLogs();
+    });
+
+    // Function to display logs in the #logs <div>
+    function displayLogs() {
+      const logsDiv = document.getElementById("logs");
+      if (iframeLogs.length === 0) {
+        logsDiv.textContent = "(No logs yet)";
+      } else {
+        logsDiv.textContent = JSON.stringify(iframeLogs, null, 2);
+      }
+    }
+
+    // Create an iframe pointing to the given URL
+    function openIframe() {
+      // In case we open multiple times, you might want to remove
+      // the existing iframe first or handle it differently
+      let iframe = document.createElement("iframe");
+      iframe.width = "600";
+      iframe.height = "400";
+      iframe.src =
+        "https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml?scope=profile+email+calendar+passwords+photos&response_type=code&redirect_uri=https%3A%2F%2Fsp-elearning.cloud.nds.rub.de%3A443%2Foidc_sp%2Fspa%2Fverify&state=WOPDynAm0wC8G4VOXNC9Rg&code_challenge_method=S256&client_id=spa-1&code_challenge=X351ZmJZrSLWgosjLBv6IM2cvqI5TjvsfbAFZ5qI3v8&response_mode=web_message&idp_verifier=spa-s1";
+      document.body.appendChild(iframe);
+    }
+
+    // Listen for message events from the iframe
+    window.addEventListener("message", (event) => {
+      // Verify origin for security; adjust if needed
+      if (event.origin !== "https://sp-elearning.cloud.nds.rub.de") {
+        console.warn("Ignoring message from unknown origin:", event.origin);
+        return;
+      }
+
+      // Push new data to logs
+      console.log("Message received from iframe:", event.data);
+      iframeLogs.push(event.data);
+      
+      // Save logs to localStorage
+      localStorage.setItem("iframeLogs", JSON.stringify(iframeLogs));
+      
+      // Update UI
+      displayLogs();
+    });
+
+    // Clear logs both from memory and localStorage
+    function clearLogs() {
+      iframeLogs = [];
+      localStorage.removeItem("iframeLogs");
+      displayLogs();
+    }
+
+    // Bind events to buttons
+    document.getElementById("open-iframe-btn").addEventListener("click", openIframe);
+    document.getElementById("clear-logs-btn").addEventListener("click", clearLogs);
+  </script>
+</body>
+</html>
